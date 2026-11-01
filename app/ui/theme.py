@@ -7,20 +7,20 @@ Single source of truth: the same dictionary is exposed to QML as the
 
 from string import Template
 
-BG = "#09090b"
-SURFACE = "#0f0f12"
-ELEVATED = "#17171b"
-HOVER = "#1f1f25"
-BORDER = "#26262c"
-BORDER_STRONG = "#3a3a43"
+BG = "#0a0d14"
+SURFACE = "#111722"
+ELEVATED = "#192231"
+HOVER = "#222d40"
+BORDER = "#253044"
+BORDER_STRONG = "#3b4a65"
 
 TEXT = "#fafafa"
-TEXT_DIM = "#a1a1aa"
-MUTED = "#71717a"
+TEXT_DIM = "#aab6ca"
+MUTED = "#75839a"
 
-ACCENT = "#6366f1"
-ACCENT_HOVER = "#7a7df5"
-ACCENT_SOFT = "#1b1c3a"
+ACCENT = "#7487ff"
+ACCENT_HOVER = "#9aa8ff"
+ACCENT_SOFT = "#202a4b"
 
 GREEN = "#34d399"
 AMBER = "#fbbf24"
@@ -64,12 +64,13 @@ QPushButton[nav="true"] {
 }
 QPushButton[nav="true"]:hover { background: $elevated; color: $text; }
 QPushButton[nav="true"]:checked {
-    background: $elevated; border: 1px solid $border; color: $text; font-weight: 600;
+    background: $accentSoft; border: 1px solid #303d68; border-left: 3px solid $accent;
+    color: $accentHover; font-weight: 600; padding-left: 10px;
 }
 
 /* typography roles */
-QLabel[role="h1"] { font-size: 24px; font-weight: 600; }
-QLabel[role="h2"] { font-size: 15px; font-weight: 600; }
+QLabel[role="h1"] { font-size: 26px; font-weight: 650; letter-spacing: -0.4px; }
+QLabel[role="h2"] { font-size: 15px; font-weight: 650; color: $text; }
 QLabel[role="dim"] { color: $textDim; }
 QLabel[role="muted"] { color: $muted; font-size: 12px; }
 QLabel[tone="good"] { color: $green; font-weight: 600; }
@@ -77,22 +78,24 @@ QLabel[tone="bad"] { color: $red; font-weight: 600; }
 QLabel[tone="info"] { color: $accentHover; }
 
 /* surfaces */
-QFrame#Card { background: $surface; border: 1px solid $border; border-radius: 12px; }
+QFrame#Card { background: $surface; border: 1px solid $border; border-radius: 16px; }
+QFrame#Card:hover { border-color: #303d55; }
 QFrame#UnknownCard { background: $surface; border: 1px solid $border; border-radius: 10px; }
 QFrame#UnknownCard:hover { border: 1px solid $borderStrong; }
 QLabel#Thumb { background: $elevated; border-radius: 6px; color: $muted; }
 QLabel#PhotoPreview { background: $elevated; border: 1px dashed $borderStrong; border-radius: 10px; color: $muted; }
+QLabel#EmptyState { background: $surface; border: 1px dashed $borderStrong; border-radius: 16px; padding: 28px; color: $textDim; }
 
 /* buttons */
 QPushButton {
-    background: $elevated; border: 1px solid $border; border-radius: 8px;
-    padding: 8px 14px; color: $text;
+    background: $elevated; border: 1px solid $border; border-radius: 9px;
+    padding: 8px 14px; min-height: 20px; color: $text;
 }
 QPushButton:hover { background: $hover; border: 1px solid $borderStrong; }
 QPushButton:pressed { background: $surface; }
 QPushButton:disabled { color: $muted; background: $surface; }
-QPushButton[variant="primary"] { background: $text; color: $bg; border: none; font-weight: 600; }
-QPushButton[variant="primary"]:hover { background: #e4e4e7; }
+QPushButton[variant="primary"] { background: $accent; color: #ffffff; border: none; font-weight: 650; }
+QPushButton[variant="primary"]:hover { background: $accentHover; }
 QPushButton[variant="primary"]:disabled { background: #3f3f46; color: $muted; }
 QPushButton[variant="accent"] { background: $accent; color: #ffffff; border: none; font-weight: 600; }
 QPushButton[variant="accent"]:hover { background: $accentHover; }
@@ -103,8 +106,8 @@ QPushButton[variant="danger"]:hover { background: $red; color: $bg; border: 1px 
 
 /* inputs */
 QLineEdit, QSpinBox {
-    background: #0c0c0f; border: 1px solid $border; border-radius: 8px;
-    padding: 8px 10px; selection-background-color: $accent;
+    background: #0d121b; border: 1px solid $border; border-radius: 9px;
+    padding: 9px 11px; selection-background-color: $accent;
 }
 QLineEdit:hover, QSpinBox:hover { border: 1px solid $borderStrong; }
 QLineEdit:focus, QSpinBox:focus { border: 1px solid $accent; }
@@ -117,13 +120,14 @@ QTextEdit#Log {
 /* tables */
 QTableWidget {
     background: $surface; border: 1px solid $border; border-radius: 12px;
-    gridline-color: $border; alternate-background-color: #0c0c0f;
+    gridline-color: transparent; alternate-background-color: #0d121b;
     selection-background-color: $accentSoft; selection-color: $text;
 }
-QTableWidget::item { padding: 8px; border: none; border-bottom: 1px solid $border; }
+QTableWidget::item { padding: 10px 8px; border: none; border-bottom: 1px solid $border; }
+QTableWidget::item:selected { background: $accentSoft; color: $text; }
 QHeaderView { background: transparent; border: none; }
 QHeaderView::section {
-    background: $surface; color: $muted; padding: 10px 8px; border: none;
+    background: $elevated; color: $textDim; padding: 11px 8px; border: none;
     border-bottom: 1px solid $border; font-weight: 500;
 }
 QTableCornerButton::section { background: $surface; border: none; }
@@ -143,7 +147,7 @@ QPushButton[sessionCard="true"] {
     background: $surface; border: 1px solid $border; color: $textDim;
 }
 QPushButton[sessionCard="true"]:hover { border: 1px solid $borderStrong; }
-QPushButton[sessionCard="true"]:checked { background: $accentSoft; border: 1px solid $accent; color: $text; }
+QPushButton[sessionCard="true"]:checked { background: $accentSoft; border: 1px solid $accent; color: $text; font-weight: 600; }
 
 /* scrolling */
 QScrollArea { border: none; background: transparent; }

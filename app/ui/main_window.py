@@ -38,7 +38,7 @@ from app.ui.pages import (
     EnrollPage, LivePage, ManualPage, RegisterPage, SettingsPage, StudentsPage, UnknownPage,
 )
 from app.ui.theme import ACCENT_HOVER, GREEN, RED, TEXT, TEXT_DIM
-from app.ui.widgets import make_label
+from app.ui.widgets import make_label, set_tone
 from app.ui.workers import CameraThread, InferenceWorker, InitThread, Task
 from app.utils.camera import Camera
 from app.vision.pipeline import FacePipeline, RecognitionResult
@@ -74,6 +74,7 @@ class MainWindow(FramelessWindow):
         self._latest_result: RecognitionResult | None = None
         self._busy = False
         self._models_ready = False
+        self._circle_mask = None
         self._scan_active = False
         self._last_session_code: str | None = None
         self._enroll_photo_path: str | None = None
@@ -253,9 +254,11 @@ class MainWindow(FramelessWindow):
         side = max(1, int(min(h, w) * 0.82))
         x0, y0 = (w - side) // 2, (h - side) // 2
         frame = frame[y0:y0 + side, x0:x0 + side].copy()
-        mask = np.zeros((side, side), dtype=np.uint8)
-        cv2.circle(mask, (side // 2, side // 2), side // 2 - 8, 255, -1)
-        frame[mask == 0] = 0
+        if self._circle_mask is None or self._circle_mask.shape != (side, side):
+            mask = np.zeros((side, side), dtype=np.uint8)
+            cv2.circle(mask, (side // 2, side // 2), side // 2 - 8, 255, -1)
+            self._circle_mask = mask.astype(bool)
+        frame[~self._circle_mask] = 0
 
         self.live_page.camera_view.set_frame(frame, self._latest_result)
         if self._models_ready and not self._busy:
@@ -271,6 +274,9 @@ class MainWindow(FramelessWindow):
         self.live_page.camera_view.set_result(result)
         if result.latency_ms > 0:
             self.live_page.lbl_latency.setText(f"{result.latency_ms:.0f} ms")
+            target = config.recognition.target_latency_ms
+            tone = "good" if result.latency_ms <= target else ("info" if result.latency_ms <= target * 2 else "bad")
+            set_tone(self.live_page.lbl_latency, tone)
         if result.status == "candidate" and result.student_pk is not None:
             self._handle_candidate(result)
 

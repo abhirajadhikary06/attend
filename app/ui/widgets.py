@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QRectF, QSize
 from PySide6.QtGui import (
     QColor, QFont, QFontMetrics, QImage, QPainter, QPainterPath, QPen,
 )
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QFrame, QGraphicsDropShadowEffect, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from app.ui.icons import icon, icon_pixmap
 from app.ui.theme import ACCENT, AMBER, BG, BORDER, GREEN, MUTED, RED, SURFACE, TEXT, TEXT_DIM
@@ -50,6 +50,11 @@ class Card(QFrame):
         self.body = QVBoxLayout(self)
         self.body.setContentsMargins(*margins)
         self.body.setSpacing(spacing)
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(28)
+        shadow.setOffset(0, 7)
+        shadow.setColor(QColor(0, 0, 0, 95))
+        self.setGraphicsEffect(shadow)
 
 
 class PageHeader(QWidget):

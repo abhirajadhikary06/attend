@@ -82,7 +82,9 @@ Rectangle {
                 Text {
                     text: pn.subtitle
                     color: Theme.muted
-                    font.pixelSize: 12
+                    font.pixelSize: 11
+                    Layout.maximumWidth: 160
+                    elide: Text.ElideRight
                 }
             }
         }
@@ -97,7 +99,7 @@ Rectangle {
         property string hint: ""
         property string iconName: ""
         Behavior on shown { NumberAnimation { duration: 800; easing.type: Easing.OutCubic } }
-        implicitHeight: 120
+        implicitHeight: 140
         radius: 14
         color: Theme.surface
         border.width: 1
@@ -111,7 +113,8 @@ Rectangle {
                 Text {
                     text: sc.label
                     color: Theme.textDim
-                    font.pixelSize: 13
+                    font.pixelSize: 12
+                    elide: Text.ElideRight
                     Layout.fillWidth: true
                 }
                 Image {
@@ -132,7 +135,12 @@ Rectangle {
             Text {
                 text: sc.hint
                 color: Theme.muted
-                font.pixelSize: 12
+                font.pixelSize: 11
+                Layout.fillWidth: true
+                Layout.preferredHeight: 30
+                wrapMode: Text.WordWrap
+                maximumLineCount: 2
+                elide: Text.ElideRight
             }
         }
     }
@@ -182,8 +190,8 @@ Rectangle {
             anchors.bottom: parent.bottom
             anchors.margins: 18
             spacing: 3
-            Text { text: at.title; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
-            Text { text: at.desc; color: Theme.muted; font.pixelSize: 12; width: parent.width; wrapMode: Text.WordWrap }
+            Text { text: at.title; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; width: parent.width; elide: Text.ElideRight }
+            Text { text: at.desc; color: Theme.muted; font.pixelSize: 11; width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight }
         }
         MouseArea {
             id: atMouse
@@ -207,8 +215,8 @@ Rectangle {
             Layout.alignment: Qt.AlignVCenter
             color: sr.ok ? Theme.green : (sr.warn ? Theme.amber : Theme.red)
         }
-        Text { text: sr.label; color: Theme.textDim; font.pixelSize: 13; Layout.fillWidth: true }
-        Text { text: sr.value; color: Theme.text; font.pixelSize: 13 }
+        Text { text: sr.label; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
+        Text { text: sr.value; color: Theme.text; font.pixelSize: 12; Layout.maximumWidth: 150; elide: Text.ElideRight }
     }
 
     // ------------------------------------------------------------------ ambient wash
@@ -405,21 +413,21 @@ Rectangle {
                     Layout.fillWidth: true
                     label: "Enrolled students"
                     target: backend.studentCount
-                    hint: "Records in the database"
+                    hint: "Active student records"
                     iconName: "users"
                 }
                 StatCard {
                     Layout.fillWidth: true
                     label: "Present today"
                     target: backend.todayCount
-                    hint: "Across all sessions"
+                    hint: "Unique students today"
                     iconName: "calendar"
                 }
                 StatCard {
                     Layout.fillWidth: true
                     label: "Unknown faces"
                     target: backend.unknownCount
-                    hint: "Waiting for review"
+                    hint: "Ready for review"
                     iconName: "user-x"
                 }
                 StatCard {

@@ -69,8 +69,8 @@ class FacePipeline:
                 return self._last_result
             return RecognitionResult(status="no_face", message="Skipped frame")
 
-        # Detect + embed
-        detections = self.recognizer.detect_and_embed(frame)
+        # Detect all faces; ArcFace is deferred to the selected track when needed.
+        detections = self.recognizer.detect_faces(frame)
 
         # Update tracker
         tracks = self.tracker.update(detections)
@@ -139,11 +139,21 @@ class FacePipeline:
             self._last_result = result
             return result
 
-        # Recognition
+        # Only embed the selected face when this track is due for recognition.
+        # Detection and tracking continue every processed frame without repeating ArcFace.
         if primary.embedding is None:
-            result = RecognitionResult(status="no_face", message="No embedding")
-            self._last_result = result
-            return result
+            primary.embedding = self.recognizer.embed_detection(frame, primary.kps)
+            if primary.embedding is None:
+                primary.last_mark_attempt = now
+                result = RecognitionResult(
+                    status="no_face",
+                    message="Could not extract face embedding",
+                    track_id=primary.track_id,
+                    bbox=primary.bbox,
+                    latency_ms=(time.perf_counter() - t0) * 1000,
+                )
+                self._last_result = result
+                return result
 
         student_pk, student_id, score = self.recognizer.search(primary.embedding)
 
@@ -206,6 +216,9 @@ class FacePipeline:
                         self.on_unknown(primary.embedding.copy(), face_crop.copy())
                     except Exception:
                         logger.exception("on_unknown callback failed")
+
+        if result.status == "unknown":
+            primary.embedding = None  # Refresh the sample at the next allowed retry.
 
         self._last_result = result
         if self.on_result:

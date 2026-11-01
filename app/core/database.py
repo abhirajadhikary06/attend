@@ -358,6 +358,26 @@ def get_sessions_with_counts(days: int = 31) -> List[dict]:
         ]
 
 
+def get_unique_attendance_counts_by_date(days: int = 7) -> dict[date, int]:
+    """Count distinct students with attendance per local session date."""
+    cutoff = today_ist() - timedelta(days=days - 1)
+    with get_session() as session:
+        rows = session.execute(
+            select(
+                AttendanceSession.session_date,
+                func.count(func.distinct(Attendance.student_id)),
+            )
+            .join(Attendance, Attendance.session_id == AttendanceSession.id)
+            .join(Student, Student.id == Attendance.student_id)
+            .where(and_(
+                AttendanceSession.session_date >= cutoff,
+                AttendanceSession.session_date <= today_ist(),
+                Student.is_active == True,
+            ))
+            .group_by(AttendanceSession.session_date)
+        ).all()
+        return {session_date: int(count) for session_date, count in rows}
+
 def get_attendance_for_session_detailed(session_pk: int) -> List[dict]:
     """
     Return all attendance records for a single session with student info.

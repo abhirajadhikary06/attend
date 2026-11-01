@@ -13,7 +13,7 @@ from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtQuick import QQuickImageProvider
 from PySide6.QtQuickWidgets import QQuickWidget
 
-from app.core.database import get_all_students, get_all_unknowns, get_sessions_with_counts
+from app.core.database import get_all_students, get_all_unknowns, get_unique_attendance_counts_by_date
 from app.core.time_utils import now_ist, today_ist
 from app.ui.icons import icon_pixmap
 from app.ui.theme import BG, THEME_DICT
@@ -86,10 +86,7 @@ class DashboardBridge(QObject):
             self._unknown = len(get_all_unknowns(limit=500))
             today = today_ist()
             per_day = {today - timedelta(days=i): 0 for i in range(6, -1, -1)}
-            for s in get_sessions_with_counts(days=7):
-                d = s["session_date"]
-                if d in per_day:
-                    per_day[d] += int(s["count"])
+            per_day.update(get_unique_attendance_counts_by_date(days=7))
             self._trend_values = list(per_day.values())
             self._trend_labels = [d.strftime("%a") for d in per_day]
             self._today = per_day[today]

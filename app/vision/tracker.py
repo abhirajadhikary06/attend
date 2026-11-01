@@ -16,6 +16,8 @@ class Track:
     track_id: int
     bbox: List[int]                 # [x1, y1, x2, y2]
     embedding: Optional[np.ndarray] = None
+    kps: Optional[np.ndarray] = None
+    det_score: float = 0.0
     student_pk: Optional[int] = None
     student_id: Optional[str] = None
     last_score: float = 0.0
@@ -86,6 +88,8 @@ class SimpleTracker:
 
             if best_trk is not None:
                 best_trk.bbox = det["bbox"]
+                best_trk.kps = det.get("kps")
+                best_trk.det_score = float(det.get("det_score", best_trk.det_score))
                 if det.get("embedding") is not None:
                     best_trk.embedding = det["embedding"]
                 best_trk.hits += 1
@@ -103,6 +107,8 @@ class SimpleTracker:
                 track_id=tid,
                 bbox=det["bbox"],
                 embedding=det.get("embedding"),
+                kps=det.get("kps"),
+                det_score=float(det.get("det_score", 0.0)),
             )
 
         self._remove_stale()

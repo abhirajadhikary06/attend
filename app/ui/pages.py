@@ -67,7 +67,7 @@ class LivePage(QWidget):
     def __init__(self):
         super().__init__()
         v = _page_layout(self)
-        v.addWidget(PageHeader("Live Scanner", "Faces are detected and matched in a background worker."))
+        v.addWidget(PageHeader("Live Scanner", "Center one face in the guide. Matching runs locally on this device."))
 
         row = QHBoxLayout()
         row.setSpacing(18)
@@ -123,6 +123,8 @@ class EnrollPage(QWidget):
 
         form_card = Card()
         form_card.setFixedWidth(460)
+        form_card.body.addWidget(make_label("Student profile", "h2"))
+        form_card.body.addWidget(make_label("Use a clear, front-facing photo for the best match quality.", "muted"))
         form = QFormLayout()
         form.setSpacing(12)
         form.setLabelAlignment(Qt.AlignLeft)
@@ -158,10 +160,11 @@ class EnrollPage(QWidget):
         row.addWidget(form_card)
 
         log_card = Card()
-        log_card.body.addWidget(make_label("Enrollment log", "h2"))
+        log_card.body.addWidget(make_label("Enrollment activity", "h2"))
         self.enroll_log = QTextEdit()
         self.enroll_log.setObjectName("Log")
         self.enroll_log.setReadOnly(True)
+        self.enroll_log.setPlaceholderText("Choose a photo or folder to begin. Results and index updates will appear here.")
         log_card.body.addWidget(self.enroll_log, 1)
         row.addWidget(log_card, 1)
         v.addLayout(row, 1)
@@ -185,10 +188,12 @@ class StudentsPage(QWidget):
         v = _page_layout(self)
         header = PageHeader("Students", "Everyone enrolled in the recognition index.")
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Filter by ID, name or department")
+        self.search.setPlaceholderText("Search ID, name, or department")
+        self.lbl_count = make_label("0 students", "muted")
         self.search.setFixedWidth(280)
         self.search.textChanged.connect(self._filter)
         self.btn_refresh = make_button("Refresh", icon_name="refresh-cw")
+        header.actions.addWidget(self.lbl_count)
         header.actions.addWidget(self.search)
         header.actions.addWidget(self.btn_refresh)
         v.addWidget(header)
@@ -196,6 +201,7 @@ class StudentsPage(QWidget):
         v.addWidget(self.table, 1)
 
     def load(self, students):
+        self.lbl_count.setText(f"{len(students)} students")
         self.table.setRowCount(len(students))
         for row, s in enumerate(students):
             enrolled = s.enrolled_at.strftime("%Y-%m-%d") if s.enrolled_at else ""
@@ -219,6 +225,8 @@ class ManualPage(QWidget):
 
         card = Card()
         card.setFixedWidth(520)
+        card.body.addWidget(make_label('Manual attendance', 'h2'))
+        card.body.addWidget(make_label('Use this option when a student cannot be marked by face recognition. Add a clear reason for the audit trail.', 'muted'))
         form = QFormLayout()
         form.setSpacing(12)
         self.man_student_id = QLineEdit()
@@ -236,6 +244,7 @@ class ManualPage(QWidget):
         self.manual_log = QTextEdit()
         self.manual_log.setObjectName("Log")
         self.manual_log.setReadOnly(True)
+        self.manual_log.setPlaceholderText("Manual attendance results will appear here.")
         log_card.body.addWidget(self.manual_log, 1)
         v.addWidget(log_card, 1)
 
@@ -245,31 +254,38 @@ class SettingsPage(QWidget):
     def __init__(self):
         super().__init__()
         v = _page_layout(self)
-        v.addWidget(PageHeader("Settings", "Recognition sensitivity and session windows."))
+        v.addWidget(PageHeader("Settings", "Adjust recognition behavior and daily attendance windows."))
 
         card = Card()
-        card.setFixedWidth(520)
-        form = QFormLayout()
-        form.setSpacing(12)
+        card.setFixedWidth(580)
+        card.body.addWidget(make_label("Recognition sensitivity", "h2"))
+        card.body.addWidget(make_label("Higher match thresholds are stricter and may require a clearer face image.", "muted"))
+        recognition_form = QFormLayout()
+        recognition_form.setSpacing(12)
         self.cfg_match_th = QSpinBox()
         self.cfg_match_th.setRange(20, 80)
         self.cfg_match_th.setValue(int(config.recognition.match_threshold * 100))
+        recognition_form.addRow(make_label("Match threshold (x100)", "dim"), self.cfg_match_th)
+        card.body.addLayout(recognition_form)
+
+        card.body.addWidget(make_label("Attendance schedule", "h2"))
+        card.body.addWidget(make_label("Session hours are evaluated in India Standard Time (IST).", "muted"))
+        schedule_form = QFormLayout()
+        schedule_form.setSpacing(12)
         self.cfg_s1_start = QLineEdit(config.sessions.session1_start)
         self.cfg_s1_end = QLineEdit(config.sessions.session1_end)
         self.cfg_s2_start = QLineEdit(config.sessions.session2_start)
         self.cfg_s2_end = QLineEdit(config.sessions.session2_end)
-        form.addRow(make_label("Match threshold (x100)", "dim"), self.cfg_match_th)
-        form.addRow(make_label("Session 1 start (HH:MM)", "dim"), self.cfg_s1_start)
-        form.addRow(make_label("Session 1 end", "dim"), self.cfg_s1_end)
-        form.addRow(make_label("Session 2 start", "dim"), self.cfg_s2_start)
-        form.addRow(make_label("Session 2 end", "dim"), self.cfg_s2_end)
-        card.body.addLayout(form)
+        schedule_form.addRow(make_label("Session 1 start (HH:MM)", "dim"), self.cfg_s1_start)
+        schedule_form.addRow(make_label("Session 1 end", "dim"), self.cfg_s1_end)
+        schedule_form.addRow(make_label("Session 2 start", "dim"), self.cfg_s2_start)
+        schedule_form.addRow(make_label("Session 2 end", "dim"), self.cfg_s2_end)
+        card.body.addLayout(schedule_form)
+
         self.btn_save = make_button("Save settings", "primary", "save")
         card.body.addWidget(self.btn_save)
         v.addWidget(card)
         v.addStretch()
-
-
 # ------------------------------------------------------------------------------
 class RegisterPage(QWidget):
     """Month calendar on the left; sessions for the chosen day and their students on the right."""
@@ -494,8 +510,11 @@ class UnknownPage(QWidget):
         scroll.setWidget(self.grid_widget)
         v.addWidget(scroll, 1)
 
-        self.empty_lbl = make_label("No unknown faces yet. They appear here when the camera sees someone it cannot match.", "muted")
+        self.empty_lbl = make_label("No unknown faces yet.\nUnmatched people seen by the camera will appear here for review.", "dim")
+        self.empty_lbl.setObjectName("EmptyState")
+        self.empty_lbl.setWordWrap(True)
         self.empty_lbl.setAlignment(Qt.AlignCenter)
+        self.empty_lbl.setMinimumHeight(180)
         v.addWidget(self.empty_lbl)
 
     def _column_count(self) -> int:

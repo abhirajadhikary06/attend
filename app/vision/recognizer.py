@@ -7,6 +7,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import List, Optional, Tuple
+from types import SimpleNamespace
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -118,6 +119,43 @@ class FaceRecognizer:
             logger.debug("detect_and_embed failed: %s", e)
             return []
 
+    def detect_faces(self, frame: np.ndarray) -> List[dict]:
+        """Run the detector only; defer ArcFace until a track needs recognition."""
+        if not self._initialized or self.app is None:
+            return []
+        try:
+            bboxes, keypoints = self.app.det_model.detect(
+                frame, max_num=0, metric="default")
+            detections = []
+            for i, bbox in enumerate(bboxes):
+                detections.append({
+                    "bbox": bbox[:4].astype(int).tolist(),
+                    "embedding": None,
+                    "kps": keypoints[i] if keypoints is not None else None,
+                    "det_score": float(bbox[4]),
+                })
+            return detections
+        except Exception as exc:
+            logger.debug("Face detection failed: %s", exc)
+            return []
+
+    def embed_detection(self, frame: np.ndarray, keypoints: np.ndarray) -> Optional[np.ndarray]:
+        """Extract one normalized embedding for the selected primary face."""
+        if not self._initialized or self.app is None or keypoints is None:
+            return None
+        model = self.app.models.get("recognition")
+        if model is None:
+            return None
+        try:
+            face = SimpleNamespace(kps=keypoints, embedding=None)
+            emb = model.get(frame, face)
+            if emb is None:
+                return None
+            emb = np.asarray(emb, dtype=np.float32)
+            return emb / (np.linalg.norm(emb) + 1e-8)
+        except Exception as exc:
+            logger.debug("Selected-face embedding failed: %s", exc)
+            return None
     def build_index(self) -> int:
         """
         Rebuild FAISS index from all active students that have embeddings.
