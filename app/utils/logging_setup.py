@@ -29,3 +29,5 @@ def setup_logging(level=logging.INFO):
     # Quiet some noisy libraries
     logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
     logging.getLogger("insightface").setLevel(logging.WARNING)
+    # Pipeline debug — shows already_marked / candidate transitions
+    logging.getLogger("app.vision.pipeline").setLevel(logging.DEBUG)

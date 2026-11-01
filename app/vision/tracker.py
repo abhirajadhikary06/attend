@@ -24,13 +24,14 @@ class Track:
     time_since_update: int = 0
     last_seen: float = field(default_factory=time.time)
     attendance_marked: bool = False
-    last_mark_attempt: float = 0.0
+    last_mark_attempt: float = 0.0       # epoch of last recognition attempt (known OR unknown)
+    last_unknown_attempt: float = 0.0    # epoch of last time this track was seen as unknown
 
 
 class SimpleTracker:
     def __init__(
         self,
-        max_age: int = 30,          # frames
+        max_age: int = 90,          # frames before a track is dropped (~6s at 15fps)
         min_hits: int = 2,
         iou_threshold: float = 0.3,
         emb_threshold: float = 0.35,
@@ -60,21 +61,17 @@ class SimpleTracker:
         detections: list of {"bbox": [...], "embedding": np.ndarray, ...}
         Returns list of active tracks.
         """
-        # Age existing tracks
         for t in self.tracks.values():
             t.age += 1
             t.time_since_update += 1
 
         if not detections:
-            # Remove old tracks
             self._remove_stale()
             return list(self.tracks.values())
 
-        # Match detections to existing tracks
         matched_det = set()
         matched_trk = set()
 
-        # Greedy matching by IoU then embedding
         track_list = list(self.tracks.values())
         for i, det in enumerate(detections):
             best_iou = 0.0
@@ -88,7 +85,6 @@ class SimpleTracker:
                     best_trk = trk
 
             if best_trk is not None:
-                # Update track
                 best_trk.bbox = det["bbox"]
                 if det.get("embedding") is not None:
                     best_trk.embedding = det["embedding"]
@@ -98,7 +94,6 @@ class SimpleTracker:
                 matched_det.add(i)
                 matched_trk.add(best_trk.track_id)
 
-        # Create new tracks for unmatched detections
         for i, det in enumerate(detections):
             if i in matched_det:
                 continue
@@ -121,10 +116,32 @@ class SimpleTracker:
         for tid in to_del:
             del self.tracks[tid]
 
+    def reset_unknown_tracks(self):
+        """
+        Called after a new student is enrolled / index rebuilt.
+        Resets the recognition cooldown on any track that was last seen as
+        unknown (no student_id assigned), so they get a fresh recognition
+        attempt immediately without waiting out the cooldown.
+        """
+        for t in self.tracks.values():
+            if t.student_id is None and not t.attendance_marked:
+                t.last_mark_attempt = 0.0   # allow immediate retry
+
+    def reset_for_new_session(self):
+        """
+        Called when a new attendance session becomes active.
+        Clears the attendance_marked flag on all tracks so students who
+        were already marked in a previous session can be marked again.
+        Also resets cooldowns.
+        """
+        for t in self.tracks.values():
+            t.attendance_marked = False
+            t.last_mark_attempt = 0.0
+
     def get_primary_track(self, frame_shape: Tuple[int, int]) -> Optional[Track]:
         """
-        Select the most likely 'front' person using a simple proximity score:
-        larger face area + closer to horizontal centre + more recent + higher hits.
+        Select the most likely 'front' person: larger face area + closer to
+        horizontal centre + more recently updated + more hits.
         """
         if not self.tracks:
             return None
@@ -141,7 +158,6 @@ class SimpleTracker:
             area = (x2 - x1) * (y2 - y1)
             face_cx = (x1 + x2) / 2.0
             centre_dist = abs(face_cx - cx) / w
-            # Prefer larger faces near the centre that are recently updated
             score = (area / (w * h)) * 2.0 - centre_dist * 0.8 - (t.time_since_update * 0.05)
             if score > best_score:
                 best_score = score

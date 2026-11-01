@@ -35,19 +35,24 @@ class FacePipeline:
         self.tracker = SimpleTracker()
         self._frame_count = 0
         self._last_result: Optional[RecognitionResult] = None
-        self._last_unknown_save: float = 0.0   # throttle unknown saves
+        self._last_unknown_save: float = 0.0
+
+        # Set of student PKs whose attendance is confirmed in the current session.
+        # This is the authoritative in-memory record — independent of tracker state.
+        # Even if a track is dropped and recreated, this set prevents re-marking.
+        self._marked_students: set = set()
 
         # Callbacks set by the UI / service layer
         self.on_result: Optional[Callable[[RecognitionResult], None]] = None
-        self.on_unknown: Optional[Callable[[np.ndarray, np.ndarray], None]] = None  # (embedding, face_crop)
+        self.on_unknown: Optional[Callable[[np.ndarray, np.ndarray], None]] = None
 
     def initialize(self) -> bool:
         ok = self.recognizer.initialize()
         if ok:
-            # Try load existing index, otherwise build from DB
-            if not self.recognizer.load_index():
-                n = self.recognizer.build_index()
-                logger.info("Built index with %d students", n)
+            # Always rebuild from DB to ensure any students enrolled in a
+            # previous session are picked up. The disk index may be stale.
+            n = self.recognizer.build_index()
+            logger.info("Built index with %d students", n)
         return ok
 
     def process_frame(self, frame: np.ndarray) -> RecognitionResult:
@@ -93,6 +98,25 @@ class FacePipeline:
         # Cooldown / already processed
         now = time.time()
         if primary.attendance_marked:
+            logger.debug("Track %d already marked (attendance_marked=True)", primary.track_id)
+            result = RecognitionResult(
+                status="already_marked",
+                message="Attendance Already Marked",
+                student_id=primary.student_id,
+                student_pk=primary.student_pk,
+                confidence=primary.last_score,
+                track_id=primary.track_id,
+                bbox=primary.bbox,
+            )
+            self._last_result = result
+            return result
+
+        # Check the authoritative marked-students set.
+        # Catches the case where the track was dropped and recreated but the
+        # student was already confirmed in the DB this session.
+        if primary.student_pk is not None and primary.student_pk in self._marked_students:
+            logger.debug("Track %d: student_pk %d in _marked_students, syncing", primary.track_id, primary.student_pk)
+            primary.attendance_marked = True   # sync track state
             result = RecognitionResult(
                 status="already_marked",
                 message="Attendance Already Marked",
@@ -131,8 +155,29 @@ class FacePipeline:
             primary.last_score = score
             primary.last_mark_attempt = now
 
+            # Check authoritative set AFTER recognition — catches the case where
+            # a new track just had recognition run for the first time but the
+            # student was already marked in this session (track-drop race).
+            if student_pk in self._marked_students:
+                logger.debug("Post-FAISS: student_pk %d already in _marked_students", student_pk)
+                primary.attendance_marked = True
+                result = RecognitionResult(
+                    status="already_marked",
+                    message="Attendance Already Marked",
+                    student_id=student_id,
+                    student_pk=student_pk,
+                    confidence=score,
+                    track_id=primary.track_id,
+                    latency_ms=latency,
+                    bbox=primary.bbox,
+                )
+                self._last_result = result
+                return result
+
+            logger.debug("Emitting candidate for %s (track %d)", student_id, primary.track_id)
+
             result = RecognitionResult(
-                status="candidate",          # service layer will decide mark vs already
+                status="candidate",
                 message=f"Recognized {student_id}",
                 student_id=student_id,
                 student_pk=student_pk,
@@ -170,10 +215,37 @@ class FacePipeline:
                 logger.exception("on_result callback failed")
         return result
 
-    def mark_track_as_attended(self, track_id: int):
+    def mark_track_as_attended(self, track_id: int, student_pk: int = None):
+        """
+        Mark a track as attended after a confirmed DB write.
+        Uses both track_id AND student_pk so any track for the same student
+        is silenced, even if the track_id changed (track-drop race condition).
+        """
+        logger.info("mark_track_as_attended: track_id=%s student_pk=%s, _marked_students before=%s",
+                    track_id, student_pk, self._marked_students)
         t = self.tracker.tracks.get(track_id)
         if t:
             t.attendance_marked = True
 
+        if student_pk is not None:
+            self._marked_students.add(student_pk)
+            for trk in self.tracker.tracks.values():
+                if trk.student_pk == student_pk:
+                    trk.attendance_marked = True
+
+        logger.info("mark_track_as_attended done: _marked_students=%s, track_ids=%s",
+                    self._marked_students,
+                    {tid: t.attendance_marked for tid, t in self.tracker.tracks.items()})
+
     def rebuild_index(self) -> int:
-        return self.recognizer.build_index()
+        """Rebuild FAISS index from DB. Resets unknown-track cooldowns so newly
+        enrolled students are recognised on the very next pipeline cycle."""
+        n = self.recognizer.build_index()
+        self.tracker.reset_unknown_tracks()
+        return n
+
+    def notify_new_session(self):
+        """Call when a new attendance session becomes active so in-frame students
+        can be re-marked without restarting the app."""
+        self._marked_students.clear()
+        self.tracker.reset_for_new_session()

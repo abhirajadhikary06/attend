@@ -13,6 +13,7 @@ from sqlalchemy import create_engine, select, func, and_, text
 from sqlalchemy.orm import sessionmaker, Session
 
 from app.core.config import DB_PATH, config
+from app.core.time_utils import today_ist
 from app.core.models import (
     Base, Student, Attendance, AttendanceSession,
     UnknownFace, AuditLog, SystemSetting
@@ -280,9 +281,8 @@ def cleanup_expired_unknowns() -> int:
 
 def cleanup_old_attendance(retention_days: int = 30) -> int:
     """
-    Delete attendance records and their sessions older than retention_days.
+    Delete attendance records older than retention_days (local date).
     Returns number of attendance rows removed.
-    Sessions that have no remaining attendance records are also pruned.
     """
     cutoff = datetime.utcnow() - timedelta(days=retention_days)
     with get_session() as session:
@@ -330,7 +330,8 @@ def get_sessions_with_counts(days: int = 31) -> List[dict]:
                start_time, end_time, count}
     Ordered newest first.
     """
-    cutoff = datetime.utcnow().date() - timedelta(days=days)
+    # Use local date (not utcnow) so the window is correct in any timezone
+    cutoff = today_ist() - timedelta(days=days)
     with get_session() as session:
         rows = session.execute(
             select(
@@ -413,6 +414,20 @@ def get_all_unknowns(limit: int = 200) -> List[UnknownFaceDTO]:
             )
             for u in rows
         ]
+
+
+def delete_unknown(unknown_pk: int) -> Optional[str]:
+    """
+    Delete an unknown face record by primary key.
+    Returns the image_path so the caller can delete the file, or None.
+    """
+    with get_session() as session:
+        uf = session.get(UnknownFace, unknown_pk)
+        if uf is None:
+            return None
+        path = uf.image_path
+        session.delete(uf)
+        return path
 
 
 # ---------- Audit ----------

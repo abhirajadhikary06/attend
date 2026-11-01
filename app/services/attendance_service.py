@@ -11,6 +11,7 @@ import cv2
 import numpy as np
 
 from app.core.config import config, UNKNOWNS_DIR
+from app.core.time_utils import now_ist
 from app.core.database import (
     get_session, get_or_create_session, mark_attendance,
     add_or_update_unknown, log_action, get_student_by_id,
@@ -33,7 +34,7 @@ class AttendanceService:
 
     def _refresh_current_session(self) -> None:
         """Determine which (if any) session is active right now."""
-        now = datetime.now()
+        now = now_ist()
         today = now.date()
         t = now.time()
 
@@ -127,7 +128,7 @@ class AttendanceService:
     ) -> None:
         """Save a representative image + embedding for an unknown face."""
         try:
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+            ts = now_ist().strftime("%Y%m%d_%H%M%S_%f")
             img_path = UNKNOWNS_DIR / f"unknown_{ts}.jpg"
             cv2.imwrite(str(img_path), face_bgr)
             add_or_update_unknown(
