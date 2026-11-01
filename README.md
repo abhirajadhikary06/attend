@@ -201,12 +201,5 @@ black app/
 
 ---
 
-## License
-
-This project is provided as a foundation for educational and institutional use.
-Review and comply with local biometric data protection regulations before deployment.
-
----
-
-**Author**: Abhiraj Adhikary
-**Institution**: Haldia Institute of Technology
+## Download
+Users can download the attend.exe directly from `dist/attend.exe`
