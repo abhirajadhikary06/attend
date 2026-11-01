@@ -38,3 +38,7 @@ data/logs/
 .pytest_cache/
 htmlcov/
 .coverage
+
+# Windows packaging output
+/build/
+/dist/

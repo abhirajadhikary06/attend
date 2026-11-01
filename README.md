@@ -68,6 +68,23 @@ python -m app.main
 
 ---
 
+## Windows Packaging
+
+The Windows installer bundles the Python runtime and application packages. Users do not need to install Python or run pip manually.
+
+To build on Windows, use Python 3.10 through 3.12, install the project dependencies, and install Inno Setup 6:
+
+1. Create the environment: python -m venv venv
+2. Install app and build dependencies: venv/Scripts/python -m pip install -r requirements.txt -r requirements-build.txt
+3. Build the app bundle: powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
+4. Create the installer: powershell -ExecutionPolicy Bypass -File scripts/build_installer.ps1
+
+The installer is created at dist/attend.exe. It installs per-user under %LOCALAPPDATA%/Programs/attend, adds a Start Menu shortcut, and offers an optional desktop shortcut. Users can launch attend from the final installer page or its shortcut.
+
+The first app launch downloads the InsightFace recognition model once; an internet connection is required for this initial setup. The app then keeps its database, configuration, student photos, logs, and model under %LOCALAPPDATA%/Attend. Student records and biometric data are not included in the installer; enroll students on each machine.
+
+---
+
 ## Project Structure
 
 ```
@@ -147,7 +164,7 @@ Bulk photo naming convention:
 
 ### First Run Model Download
 
-InsightFace will download the `buffalo_l` model pack on first launch.  
+InsightFace will download the `buffalo_l` model pack on first launch.
 Ensure you have internet access once. After that the system works fully offline.
 
 ### Performance Targets
@@ -186,10 +203,10 @@ black app/
 
 ## License
 
-This project is provided as a foundation for educational and institutional use.  
+This project is provided as a foundation for educational and institutional use.
 Review and comply with local biometric data protection regulations before deployment.
 
 ---
 
-**Author**: Abhiraj Adhikary  
+**Author**: Abhiraj Adhikary
 **Institution**: Haldia Institute of Technology

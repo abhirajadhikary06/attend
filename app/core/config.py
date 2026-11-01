@@ -8,16 +8,23 @@ from dataclasses import dataclass, field
 from typing import Tuple
 import json
 import os
+import sys
 
-# Project root (parent of app/)
+# Keep writable runtime files out of the install directory in frozen builds.
+# This lets the packaged app run without administrator/write access to its folder.
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if getattr(sys, "frozen", False):
+    APP_DATA_ROOT = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "Attend"
+    DATA_DIR = APP_DATA_ROOT / "data"
+    MODELS_DIR = APP_DATA_ROOT / "models"
+else:
+    APP_DATA_ROOT = PROJECT_ROOT
+    DATA_DIR = APP_DATA_ROOT / "data"
+    MODELS_DIR = APP_DATA_ROOT / "models"
 
-# Runtime data lives next to the executable / project
-DATA_DIR = PROJECT_ROOT / "data"
 FACES_DIR = DATA_DIR / "faces"
 UNKNOWNS_DIR = DATA_DIR / "unknowns"
 FAISS_DIR = DATA_DIR / "faiss_index"
-MODELS_DIR = PROJECT_ROOT / "models"
 DB_PATH = DATA_DIR / "attend.db"
 CONFIG_PATH = DATA_DIR / "config.json"
 LOG_DIR = DATA_DIR / "logs"
