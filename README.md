@@ -116,6 +116,12 @@ attend/
 
 After enrollment the FAISS index is automatically rebuilt.
 
+Bulk photo naming convention:
+
+- Use STUDENTID_Name.jpg (for example, S001_Alex_Smith.jpg) to set both the student ID and name. Underscores in the name become spaces.
+- Use STUDENTID.jpg (for example, S001.jpg) to use the student ID as the name.
+- Supported formats: .jpg, .jpeg, .png, and .bmp. Select the folder containing the photos in the app.
+
 ### 2. Live Attendance
 
 - Ensure a session is active (default: 09:00–13:00 and 14:00–18:00)
