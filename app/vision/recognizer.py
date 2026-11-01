@@ -5,6 +5,10 @@ Runs entirely on CPU via ONNX Runtime.
 
 from __future__ import annotations
 import logging
+import os
+import sys
+from functools import partial
+from importlib import import_module
 from pathlib import Path
 from typing import List, Optional, Tuple
 from types import SimpleNamespace
@@ -53,11 +57,27 @@ class FaceRecognizer:
 
         try:
             # Use CPU provider only
-            self.app = FaceAnalysis(
-                name=self.model_name,
-                root=str(MODELS_DIR),
-                providers=["CPUExecutionProvider"],
-            )
+            # In PyInstaller --windowed builds stdout/stderr are None. InsightFace
+            # uses tqdm during its first-run model download, which crashes when its
+            # output stream is missing. Give that download a safe stream.
+            download_module = import_module("insightface.utils.download")
+            original_tqdm = download_module.tqdm
+            progress_stream = sys.stderr or sys.stdout
+            null_stream = None
+            if progress_stream is None:
+                null_stream = open(os.devnull, "w", encoding="utf-8")
+                progress_stream = null_stream
+            try:
+                download_module.tqdm = partial(original_tqdm, file=progress_stream)
+                self.app = FaceAnalysis(
+                    name=self.model_name,
+                    root=str(MODELS_DIR),
+                    providers=["CPUExecutionProvider"],
+                )
+            finally:
+                download_module.tqdm = original_tqdm
+                if null_stream is not None:
+                    null_stream.close()
             # det_size reduced to 320×320 for lower CPU latency (still reliable for close faces)
             self.app.prepare(ctx_id=-1, det_size=(320, 320))
             self._initialized = True
@@ -90,34 +110,72 @@ class FaceRecognizer:
 
     def detect_and_embed(self, frame: np.ndarray) -> List[dict]:
         """
-        Detect faces in a full frame and return list of dicts:
-        {
-            "bbox": [x1,y1,x2,y2],
-            "embedding": np.ndarray,
-            "det_score": float,
-            "landmark": optional,
-            "pose": optional
-        }
+        Detect faces and return their normalized embeddings.
+
+        Enrollment retries at increasing detector sizes when the default live
+        camera size misses the face. The larger passes are limited to enrollment
+        so they do not increase the normal live-camera inference cost.
         """
         if not self._initialized or self.app is None:
             return []
+        def pack_faces(faces: list) -> List[dict]:
+            packed = []
+            for face in faces:
+                embedding = np.asarray(face.embedding, dtype=np.float32)
+                embedding /= np.linalg.norm(embedding) + 1e-8
+                packed.append({
+                    "bbox": face.bbox.astype(int).tolist(),
+                    "embedding": embedding,
+                    "det_score": float(face.det_score),
+                    "kps": getattr(face, "kps", None),
+                    "pose": getattr(face, "pose", None),
+                })
+            return packed
+
         try:
             faces = self.app.get(frame)
-            results = []
-            for f in faces:
-                emb = f.embedding
-                emb = emb / (np.linalg.norm(emb) + 1e-8)
-                results.append({
-                    "bbox": f.bbox.astype(int).tolist(),
-                    "embedding": emb.astype(np.float32),
-                    "det_score": float(f.det_score),
-                    "kps": f.kps if hasattr(f, "kps") else None,
-                    "pose": getattr(f, "pose", None),
-                })
-            return results
-        except Exception as e:
-            logger.debug("detect_and_embed failed: %s", e)
-            return []
+            if faces:
+                return pack_faces(faces)
+        except Exception:
+            # Still try the explicit detector path below. Some packaged runtime
+            # failures occur in FaceAnalysis.get() before detector output is
+            # returned; logging here preserves the reason for diagnosis.
+            logger.exception("Default enrollment face pass failed")
+
+        height, width = frame.shape[:2]
+        logger.info(
+            "Enrollment default detector found no faces in %dx%d image; "
+            "retrying at larger sizes", width, height,
+        )
+        for size in (640, 960, 1280):
+            try:
+                bboxes, keypoints = self.app.det_model.detect(
+                    frame,
+                    input_size=(size, size),
+                    max_num=0,
+                    metric="default",
+                )
+                results = []
+                for index, bbox in enumerate(bboxes):
+                    kps = keypoints[index] if keypoints is not None else None
+                    embedding = self.embed_detection(frame, kps)
+                    if embedding is None:
+                        continue
+                    results.append({
+                        "bbox": bbox[:4].astype(int).tolist(),
+                        "embedding": embedding,
+                        "det_score": float(bbox[4]),
+                        "kps": kps,
+                        "pose": None,
+                    })
+                logger.info(
+                    "Enrollment detector pass at %dpx: %d face(s)", size, len(results)
+                )
+                if results:
+                    return results
+            except Exception:
+                logger.exception("Enrollment detector pass at %dpx failed", size)
+        return []
 
     def detect_faces(self, frame: np.ndarray) -> List[dict]:
         """Run the detector only; defer ArcFace until a track needs recognition."""

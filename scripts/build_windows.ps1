@@ -16,12 +16,16 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $qmlPath = Join-Path $repoRoot "app\ui\qml"
+$iconPath = Join-Path $repoRoot "logos\logo.ico"
+$versionInfoPath = Join-Path $repoRoot "scripts\version_info.txt"
+if (-not (Test-Path $iconPath)) { throw "Windows icon not found: $iconPath" }
 $arguments = @(
     "--noconfirm",
     "--additional-hooks-dir", "scripts/pyinstaller_hooks",
     "--specpath", "build",
     "--add-data", "$qmlPath;app/ui/qml",
-    "--clean",
+    "--icon", $iconPath,
+    "--version-file", $versionInfoPath,
     "--windowed",
     "--onedir",
     "--name", "attend",

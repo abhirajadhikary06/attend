@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QStackedWidget, QVBoxLayout,
 )
 
-from app.core.config import config, save_config
+from app.core.config import config, save_config, LOG_DIR
 from app.core.time_utils import now_ist
 from app.core.database import (
     cleanup_expired_unknowns, cleanup_old_attendance, get_all_students, init_db, log_action,
@@ -82,6 +82,11 @@ class MainWindow(FramelessWindow):
         self._pool = QThreadPool.globalInstance()
 
         self._build_ui()
+        self.enroll_page.btn_enroll_one.setEnabled(False)
+        self.enroll_page.btn_bulk.setEnabled(False)
+        self.enroll_page.enroll_log.append(
+            "Preparing the recognition model. Enrollment will be enabled when it is ready."
+        )
         self._build_workers()
         self._wire()
         QTimer.singleShot(200, self._startup)
@@ -223,12 +228,16 @@ class MainWindow(FramelessWindow):
         if not ok:
             QMessageBox.critical(
                 self, "Model error",
-                "Failed to load the InsightFace models.\n"
-                "Check that insightface and onnxruntime are installed.")
+                "Could not initialize InsightFace. On first launch, check internet access "
+                "so the recognition model can download.\n\n"
+                f"See the log for details: {LOG_DIR / 'attend.log'}")
             self.live_page.set_status("Models unavailable", "bad")
             return
         self._models_ready = True
         self.enrollment_svc = EnrollmentService(self.pipeline.recognizer)
+        self.enroll_page.btn_enroll_one.setEnabled(True)
+        self.enroll_page.btn_bulk.setEnabled(True)
+        self.enroll_page.enroll_log.append("Recognizer ready. Enrollment is available.")
         self.pipeline.on_result = lambda r: None
         self.pipeline.on_unknown = self.attendance_svc.handle_unknown
         self.infer_thread.start()

@@ -43,7 +43,12 @@ class EnrollmentService:
 
         faces = self.recognizer.detect_and_embed(img)
         if not faces:
-            return False, "No face detected in the image"
+            logger.info("No face detected in enrollment photo %s", image_path.name)
+            return False, (
+                "No face detected. Use a clear, front-facing photo and make sure "
+                "the face is large enough in the image."
+            )
+        logger.info("Detected %d face(s) in enrollment photo %s", len(faces), image_path.name)
         if len(faces) > 1:
             # Prefer the largest face
             faces = sorted(

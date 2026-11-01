@@ -1,6 +1,6 @@
 ﻿#define AppName "attend"
 #define AppVersion "1.0.0"
-#define AppPublisher "Haldia Institute of Technology"
+#define AppPublisher "Abhiraj"
 #define AppExeName "attend.exe"
 
 [Setup]
@@ -16,6 +16,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\dist
 OutputBaseFilename=attend
+SetupIconFile=..\logos\logo.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 Compression=lzma2/ultra64
 SolidCompression=yes
