@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# InsightFace models (275 MB zip + 325 MB extracted .onnx files — way too large for git)
+models/
+
+# Runtime data — none of this belongs in source control
+data/attend.db
+data/attend.db-shm
+data/attend.db-wal
+data/config.json
+data/faces/
+data/faiss_index/
+data/unknowns/
+data/logs/
+
+# Keep the data/ directory itself (empty placeholder dirs are useful)
+!data/.gitkeep
+
+# Test artifacts
+.pytest_cache/
+htmlcov/
+.coverage
