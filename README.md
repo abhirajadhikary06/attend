@@ -418,18 +418,6 @@ Institutions deploying attend should establish appropriate consent procedures, a
 
 ---
 
-## Limitations & Future Work
-
-The following areas remain candidates for further development:
-
-- [ ] Liveness detection and presentation attack prevention.
-- [ ] Complete unknown-face gallery and management interface.
-- [ ] Advanced attendance analytics and reporting.
-- [ ] Comprehensive recognition accuracy evaluation across different lighting conditions, camera qualities, and facial angles.
-- [ ] Improved recognition threshold calibration.
-- [ ] Additional administrative access controls.
-- [ ] Expanded automated test coverage.
-
 **Important:** Liveness detection is not currently implemented. A photograph or video displayed to the webcam may be used to spoof recognition.
 
 ---
